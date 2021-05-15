@@ -1,3 +1,3 @@
 # mydotfiles
 
-### you will need the status2d patch for dwm to have colorred dwmblocks modules
+### you will need the [statuscmd](https://dwm.suckless.org/patches/statuscmd/) patch for dwm to have colorred dwmblocks modules
