@@ -1,0 +1,105 @@
+--- dwm.c
++++ dwm.c
+@@ -459,10 +478,34 @@ buttonpress(XEvent *e)
+ 			arg.ui = 1 << i;
+ 		} else if (ev->x < x + blw)
+ 			click = ClkLtSymbol;
+-		else if (ev->x > selmon->ww - (int)TEXTW(stext))
+-			click = ClkStatusText;
+-		else
+-			click = ClkWinTitle;
++		else if (ev->x > selmon->ww - statusw) {
++			x = selmon->ww - statusw;
++ 			click = ClkStatusText;
++
++			char *text, *s, ch;
++			statussig = 0;
++			for (text = s = stext; *s && x <= ev->x; s++) {
++				if ((unsigned char)(*s) < ' ') {
++					ch = *s;
++					*s = '\0';
++					x += TEXTW(text) - lrpad;
++					*s = ch;
++					text = s + 1;
++					if (x >= ev->x)
++						break;
++					statussig = ch;
++				} else if (*s == '^') {
++					*s = '\0';
++					x += TEXTW(text) - lrpad;
++					*s = '^';
++					if (*(++s) == 'f')
++						x += atoi(++s);
++					while (*(s++) != '^');
++					text = s;
++					s--;
++				}
++			}
++		}
+ 	} else if ((c = wintoclient(ev->window))) {
+ 		focus(c);
+ 		restack(selmon);
+@@ -729,9 +778,7 @@ drawbar(Monitor *m)
+ 
+ 	/* draw status first so it can be overdrawn by tags later */
+ 	if (m == selmon) { /* status is only drawn on selected monitor */
+-		drw_setscheme(drw, scheme[SchemeNorm]);
+-		tw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
+-		drw_text(drw, m->ww - tw, 0, tw, bh, 0, stext, 0);
++		tw = statusw = m->ww - drawstatusbar(m, bh, stext);
+ 	}
+ 
+ 	for (c = m->clients; c; c = c->next) {
+@@ -765,15 +822,8 @@ drawbar(Monitor *m)
+ 	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
+ 
+ 	if ((w = m->ww - tw - x) > bh) {
+-		if (m->sel) {
+-			drw_setscheme(drw, scheme[m == selmon ? SchemeSel : SchemeNorm]);
+-			drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
+-			if (m->sel->isfloating)
+-				drw_rect(drw, x + boxs, boxs, boxw, boxw, m->sel->isfixed, 0);
+-		} else {
+-			drw_setscheme(drw, scheme[SchemeNorm]);
+-			drw_rect(drw, x, 0, w, bh, 1, 1);
+-		}
++		drw_setscheme(drw, scheme[SchemeInfoNorm]);
++		drw_rect(drw, x, 0, w, bh, 1, 1);
+ 	}
+ 	drw_map(drw, m->barwin, 0, 0, m->ww, bh);
+ }
+@@ -1990,34 +2324,6 @@ tagmon(const Arg *arg)
+ 	sendmon(selmon->sel, dirtomon(arg->i));
+ }
+ 
+-void
+-tile(Monitor *m)
+-{
+-	unsigned int i, n, h, mw, my, ty;
+-	Client *c;
+-
+-	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
+-	if (n == 0)
+-		return;
+-
+-	if (n > m->nmaster)
+-		mw = m->nmaster ? m->ww * m->mfact : 0;
+-	else
+-		mw = m->ww;
+-	for (i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
+-		if (i < m->nmaster) {
+-			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
+-			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
+-			if (my + HEIGHT(c) < m->wh)
+-				my += HEIGHT(c);
+-		} else {
+-			h = (m->wh - ty) / (n - i);
+-			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
+-			if (ty + HEIGHT(c) < m->wh)
+-				ty += HEIGHT(c);
+-		}
+-}
+-
+ void
+ togglebar(const Arg *arg)
+ {
